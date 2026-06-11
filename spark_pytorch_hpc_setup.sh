@@ -9,6 +9,7 @@ TORCH_VERSION="${TORCH_VERSION:-2.9.1}"
 CLONE_PYTORCH=1
 INSTALL_REQUIREMENTS=1
 APPLY_REPO_PATCHES=1
+FRESH_INSTALL=0
 
 usage() {
   cat <<'EOF'
@@ -22,11 +23,46 @@ Options:
   --env-dir PATH           Root directory for the build environment. Default: ~/mllib-hpc
   --pytorch-dir PATH       PyTorch source directory. Default: <env-dir>/pytorch
   --torch-version VERSION  PyTorch tag to check out. Default: 2.9.1
+  --fresh                  Remove the existing env-dir before recreating it.
   --skip-clone             Do not clone or update the PyTorch source tree.
   --skip-requirements      Do not install PyTorch Python build requirements.
   --skip-patches           Do not apply the repo's local PyTorch patches.
   -h, --help               Show this help.
 EOF
+}
+
+canonicalize_path() {
+  local path="$1"
+
+  if command -v realpath >/dev/null 2>&1; then
+    realpath -m "$path"
+    return
+  fi
+
+  python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$path"
+}
+
+remove_env_root_if_requested() {
+  local env_root="$1"
+  local canonical_env_root=""
+  local canonical_home=""
+
+  if [[ "$FRESH_INSTALL" -ne 1 ]]; then
+    return 0
+  fi
+
+  canonical_env_root="$(canonicalize_path "$env_root")"
+  canonical_home="$(canonicalize_path "$HOME")"
+
+  if [[ -z "$canonical_env_root" || "$canonical_env_root" == "/" || "$canonical_env_root" == "$canonical_home" ]]; then
+    echo "[ERROR] Refusing to remove unsafe env-dir: $canonical_env_root" >&2
+    exit 1
+  fi
+
+  if [[ -e "$canonical_env_root" ]]; then
+    echo "[INFO] Removing existing environment root at $canonical_env_root"
+    rm -rf -- "$canonical_env_root"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -42,6 +78,10 @@ while [[ $# -gt 0 ]]; do
     --torch-version)
       TORCH_VERSION="$2"
       shift 2
+      ;;
+    --fresh)
+      FRESH_INSTALL=1
+      shift
       ;;
     --skip-clone)
       CLONE_PYTORCH=0
@@ -108,6 +148,8 @@ EOF
 
 need_cmd python3
 need_cmd git
+
+remove_env_root_if_requested "$ENV_ROOT"
 
 mkdir -p "$ENV_ROOT"
 

@@ -61,6 +61,14 @@ This new wrapper script:
 5. Optionally installs PyTorch build requirements.
 6. Optionally applies the repo's local PyTorch and FlashAttention patches.
 
+It also supports a clean reinstall mode:
+
+```bash
+./spark_pytorch_hpc_setup.sh --env-dir ~/mllib-hpc --fresh
+```
+
+That removes the selected environment root and recreates it from scratch.
+
 ## Quick Start
 
 ### Prepare only the build environment
@@ -82,6 +90,15 @@ This creates:
 cd ~/dgx_spark_config
 ./spark_pytorch_hpc_setup.sh --env-dir ~/mllib-hpc
 ```
+
+### Do a fresh reinstall
+
+```bash
+cd ~/dgx_spark_config
+./spark_pytorch_hpc_setup.sh --env-dir ~/mllib-hpc --fresh
+```
+
+That deletes the existing `~/mllib-hpc` tree first, then recreates the venv, activation helper, cloned PyTorch source, and Python build requirements.
 
 By default, that will:
 
