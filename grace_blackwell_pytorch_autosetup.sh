@@ -1,8 +1,70 @@
 #!/usr/bin/env bash
 # Grace + Blackwell – PyTorch 2.9.1 auto-setup (CUDA, cuDNN, cuBLAS, cuSPARSELt, cuFile, NCCL, MPI)
-# Usage:  source ./grace_blackwell_pytorch_autosetup.sh
+# Usage:  source ./grace_blackwell_pytorch_autosetup.sh [--skip-system-installs]
 
 set -euo pipefail
+
+SCRIPT_IS_SOURCED=0
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  SCRIPT_IS_SOURCED=1
+fi
+
+finish_script() {
+  local exit_code="$1"
+
+  if [[ "${SCRIPT_IS_SOURCED}" -eq 1 ]]; then
+    return "${exit_code}"
+  fi
+
+  exit "${exit_code}"
+}
+
+print_usage() {
+  cat <<'EOF'
+Usage: source ./grace_blackwell_pytorch_autosetup.sh [--skip-system-installs]
+
+Options:
+  --skip-system-installs   Skip all sudo/apt/dpkg steps and only discover/export
+                           the PyTorch build environment from already-installed
+                           CUDA, cuDNN, NCCL, cuSPARSELt, cuFile, and MPI libs.
+  -h, --help               Show this help.
+
+Environment:
+  SKIP_SYSTEM_INSTALLS=1   Same as --skip-system-installs.
+EOF
+}
+
+SKIP_SYSTEM_INSTALLS="${SKIP_SYSTEM_INSTALLS:-0}"
+
+for arg in "$@"; do
+  case "${arg}" in
+    --skip-system-installs)
+      SKIP_SYSTEM_INSTALLS=1
+      ;;
+    -h|--help)
+      print_usage
+      finish_script 0
+      ;;
+    *)
+      echo "[ERROR] Unknown argument: ${arg}" >&2
+      print_usage >&2
+      finish_script 2
+      ;;
+  esac
+done
+
+case "${SKIP_SYSTEM_INSTALLS,,}" in
+  1|true|yes)
+    SKIP_SYSTEM_INSTALLS=1
+    ;;
+  0|false|no|'')
+    SKIP_SYSTEM_INSTALLS=0
+    ;;
+  *)
+    echo "[ERROR] SKIP_SYSTEM_INSTALLS must be one of: 0, 1, true, false, yes, no" >&2
+    finish_script 2
+    ;;
+esac
 
 echo "[INFO] PyTorch 2.9.1 auto-setup for CUDA + Grace/Blackwell (AArch64)"
 
@@ -15,72 +77,76 @@ fi
 # 1) System packages (build + BLAS + MPI…)
 ############################################
 
-echo "[INFO] Installing base build & math/network packages via apt-get..."
-sudo apt-get update
-
-sudo apt-get install -y \
-  build-essential \
-  cmake \
-  ninja-build \
-  git \
-  curl \
-  wget \
-  pkg-config \
-  python3 python3-dev python3-pip python3-setuptools python3-wheel python3-venv \
-  libopenblas-dev \
-  libcublas-dev-13-0 \
-  libomp-dev \
-  libopenmpi-dev mpi-default-bin \
-  libuv1-dev \
-  libssl-dev \
-  zlib1g \
-  cudnn9-cuda-13-0
-
-############################################
-# 2) cuFile (GPUDirect Storage) via nvidia-gds
-############################################
-
-echo "[INFO] Installing cuFile (GPUDirect Storage) via nvidia-gds..."
-sudo apt-get install -y nvidia-gds || \
-  echo "[WARN] nvidia-gds not found in current repos. Check NVIDIA repo configuration if you need cuFile."
-
-############################################
-# 3) NCCL (assumes NVIDIA repos configured)
-############################################
-
-echo "[INFO] Installing NCCL system packages if available..."
-sudo apt-get install -y libnccl2 libnccl-dev || \
-  echo "[WARN] libnccl2/libnccl-dev not found in current repos. Check NVIDIA repo configuration."
-
-############################################
-# 4) cuSPARSELt local repo + packages
-############################################
-
-echo "[INFO] Installing cuSPARSELt (0.8.1) local repo for Ubuntu 24.04 (arm64)..."
-
-CUSPARSELT_DEB="cusparselt-local-repo-ubuntu2404-0.8.1_0.8.1-1_arm64.deb"
-CUSPARSELT_URL="https://developer.download.nvidia.com/compute/cusparselt/0.8.1/local_installers/${CUSPARSELT_DEB}"
-
-if ! dpkg -s cusparselt-local-repo-ubuntu2404-0.8.1 >/dev/null 2>&1; then
-  if [[ ! -f "${CUSPARSELT_DEB}" ]]; then
-    echo "[INFO] Downloading ${CUSPARSELT_DEB} ..."
-    wget -q "${CUSPARSELT_URL}"
-  fi
-
-  echo "[INFO] Installing ${CUSPARSELT_DEB} ..."
-  sudo dpkg -i "${CUSPARSELT_DEB}" || true
-
-  if [[ -d /var/cusparselt-local-repo-ubuntu2404-0.8.1 ]]; then
-    sudo cp /var/cusparselt-local-repo-ubuntu2404-0.8.1/cusparselt-*-keyring.gpg /usr/share/keyrings/ || true
-  fi
-
-  sudo apt-get update
+if [[ "${SKIP_SYSTEM_INSTALLS}" -eq 1 ]]; then
+  echo "[INFO] Skipping sudo/apt package installation; running in discovery-only mode."
 else
-  echo "[INFO] cuSPARSELt local repo already installed."
-fi
+  echo "[INFO] Installing base build & math/network packages via apt-get..."
+  sudo apt-get update
 
-sudo apt-get -y install cusparselt-cuda-12 cusparselt-cuda-13 || \
-  echo "[WARN] cuSPARSELt CUDA packages not installed (check CUDA version / repo)."
+  sudo apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    curl \
+    wget \
+    pkg-config \
+    python3 python3-dev python3-pip python3-setuptools python3-wheel python3-venv \
+    libopenblas-dev \
+    libcublas-dev-13-0 \
+    libomp-dev \
+    libopenmpi-dev mpi-default-bin \
+    libuv1-dev \
+    libssl-dev \
+    zlib1g \
+    cudnn9-cuda-13-0
+
+  ############################################
+  # 2) cuFile (GPUDirect Storage) via nvidia-gds
+  ############################################
+
+  echo "[INFO] Installing cuFile (GPUDirect Storage) via nvidia-gds..."
+  sudo apt-get install -y nvidia-gds || \
+    echo "[WARN] nvidia-gds not found in current repos. Check NVIDIA repo configuration if you need cuFile."
+
+  ############################################
+  # 3) NCCL (assumes NVIDIA repos configured)
+  ############################################
+
+  echo "[INFO] Installing NCCL system packages if available..."
+  sudo apt-get install -y libnccl2 libnccl-dev || \
+    echo "[WARN] libnccl2/libnccl-dev not found in current repos. Check NVIDIA repo configuration."
+
+  ############################################
+  # 4) cuSPARSELt local repo + packages
+  ############################################
+
+  echo "[INFO] Installing cuSPARSELt (0.8.1) local repo for Ubuntu 24.04 (arm64)..."
+
+  CUSPARSELT_DEB="cusparselt-local-repo-ubuntu2404-0.8.1_0.8.1-1_arm64.deb"
+  CUSPARSELT_URL="https://developer.download.nvidia.com/compute/cusparselt/0.8.1/local_installers/${CUSPARSELT_DEB}"
+
+  if ! dpkg -s cusparselt-local-repo-ubuntu2404-0.8.1 >/dev/null 2>&1; then
+    if [[ ! -f "${CUSPARSELT_DEB}" ]]; then
+      echo "[INFO] Downloading ${CUSPARSELT_DEB} ..."
+      wget -q "${CUSPARSELT_URL}"
+    fi
+
+    echo "[INFO] Installing ${CUSPARSELT_DEB} ..."
+    sudo dpkg -i "${CUSPARSELT_DEB}" || true
+
+    if [[ -d /var/cusparselt-local-repo-ubuntu2404-0.8.1 ]]; then
+      sudo cp /var/cusparselt-local-repo-ubuntu2404-0.8.1/cusparselt-*-keyring.gpg /usr/share/keyrings/ || true
+    fi
+
+    sudo apt-get update
+  else
+    echo "[INFO] cuSPARSELt local repo already installed."
+  fi
+
+  sudo apt-get -y install cusparselt-cuda-12 cusparselt-cuda-13 || \
+    echo "[WARN] cuSPARSELt CUDA packages not installed (check CUDA version / repo)."
+fi
 
 ############################################
 # 5) Helper functions for discovery
@@ -88,6 +154,27 @@ sudo apt-get -y install cusparselt-cuda-12 cusparselt-cuda-13 || \
 
 has_ldconfig() {
   command -v ldconfig >/dev/null 2>&1
+}
+
+prepend_path_if_dir() {
+  local variable_name="$1"
+  local directory="$2"
+  local current_value=""
+
+  [[ -d "${directory}" ]] || return 0
+
+  current_value="${!variable_name:-}"
+  if [[ ":${current_value}:" == *":${directory}:"* ]]; then
+    return 0
+  fi
+
+  if [[ -n "${current_value}" ]]; then
+    printf -v "${variable_name}" '%s:%s' "${directory}" "${current_value}"
+  else
+    printf -v "${variable_name}" '%s' "${directory}"
+  fi
+
+  export "${variable_name}"
 }
 
 find_lib_dir() {
@@ -111,7 +198,14 @@ find_header_dir() {
   local header="$1"
   local path=""
 
-  for d in /usr/include /usr/local/include /usr/local/cuda/include; do
+  for d in \
+    /usr/include \
+    /usr/include/aarch64-linux-gnu \
+    /usr/local/include \
+    /usr/local/cuda/include \
+    /usr/local/cuda/targets/sbsa-linux/include \
+    /usr/local/cuda-13.0/include \
+    /usr/local/cuda-13.0/targets/sbsa-linux/include; do
     if [[ -f "${d}/${header}" ]]; then
       echo "${d}"
       return
@@ -207,7 +301,7 @@ fi
 
 # PyTorch versioning
 export PYTORCH_BUILD_VERSION="2.9.1"
-export PYTORCH_BUILD_NUMBER=""
+export PYTORCH_BUILD_NUMBER="1"
 
 # CUDA
 if [[ -n "${CUDA_HOME}" ]]; then
@@ -267,7 +361,7 @@ fi
 
 # BLAS (CPU)
 export BLAS="OpenBLAS"
-export USE_SYSTEM_LIBS=1
+export USE_SYSTEM_LIBS=0
 
 # NNPACK
 if [[ "${ARCH}" == "aarch64" ]]; then
@@ -324,8 +418,19 @@ fi
 
 if [[ -n "${CUDA_HOME}" ]]; then
   export CUDA_HOME
-  export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}"
-  export LIBRARY_PATH="${CUDA_HOME}/lib64:/usr/local/lib:/usr/lib:${LIBRARY_PATH:-}"
+  prepend_path_if_dir PATH "${CUDA_HOME}/bin"
+  prepend_path_if_dir LD_LIBRARY_PATH "${CUDA_HOME}/lib64"
+  prepend_path_if_dir LD_LIBRARY_PATH "${CUDA_HOME}/targets/sbsa-linux/lib"
+  prepend_path_if_dir LIBRARY_PATH "${CUDA_HOME}/lib64"
+  prepend_path_if_dir LIBRARY_PATH "${CUDA_HOME}/targets/sbsa-linux/lib"
+  prepend_path_if_dir LIBRARY_PATH /usr/local/lib
+  prepend_path_if_dir LIBRARY_PATH /usr/lib
+  prepend_path_if_dir CPATH "${CUDA_HOME}/include"
+  prepend_path_if_dir CPATH "${CUDA_HOME}/targets/sbsa-linux/include"
+  prepend_path_if_dir CMAKE_INCLUDE_PATH "${CUDA_HOME}/include"
+  prepend_path_if_dir CMAKE_INCLUDE_PATH "${CUDA_HOME}/targets/sbsa-linux/include"
+  prepend_path_if_dir CMAKE_LIBRARY_PATH "${CUDA_HOME}/lib64"
+  prepend_path_if_dir CMAKE_LIBRARY_PATH "${CUDA_HOME}/targets/sbsa-linux/lib"
 fi
 
 if [[ -n "${NCCL_INCLUDE_DIR}" ]]; then

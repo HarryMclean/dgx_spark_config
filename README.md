@@ -1,5 +1,18 @@
 # Optimizing the NVIDIA DGX Spark (Grace CPU & Blackwell GPU)
 
+## Practical Setup Guides
+
+For the two workflows validated in this repository, use these repo-local guides:
+
+- [NON_HPC_PYTORCH_SETUP.md](./NON_HPC_PYTORCH_SETUP.md) for a user-local install from prebuilt optimized wheels.
+- [HPC_PYTORCH_SETUP.md](./HPC_PYTORCH_SETUP.md) for the supported source-build path using GCC/G++ plus `nvcc` on DGX Spark.
+
+If your machine already has CUDA, cuDNN, NCCL, cuSPARSELt, and cuFile installed, the autosetup helper now also supports a no-root discovery mode:
+
+```bash
+source grace_blackwell_pytorch_autosetup.sh --skip-system-installs
+```
+
 ## Overview of NVIDIA DGX Spark
 
 The NVIDIA DGX Spark is built around the NVIDIA GB10 Grace–Blackwell Superchip, pairing a high-performance Grace CPU with a next-generation Blackwell GPU on the same package. 
