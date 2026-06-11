@@ -2,11 +2,13 @@
 # Grace + Blackwell – PyTorch 2.9.1 auto-setup (CUDA, cuDNN, cuBLAS, cuSPARSELt, cuFile, NCCL, MPI)
 # Usage:  source ./grace_blackwell_pytorch_autosetup.sh [--skip-system-installs]
 
-set -euo pipefail
-
 SCRIPT_IS_SOURCED=0
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   SCRIPT_IS_SOURCED=1
+fi
+
+if [[ "${SCRIPT_IS_SOURCED}" -eq 0 ]]; then
+  set -euo pipefail
 fi
 
 finish_script() {
@@ -482,3 +484,5 @@ echo "  cd pytorch"
 echo "  git checkout v\${PYTORCH_BUILD_VERSION}"
 echo "  pip3 install -r requirements.txt"
 echo "  python3 setup.py bdist_wheel   # or develop/install"
+
+finish_script 0
