@@ -148,6 +148,10 @@ To monitor the build while it runs:
 tail -f ~/mllib-hpc/torch_build.log
 ```
 
+On this machine, the build completed successfully and produced:
+
+- `~/mllib-hpc/pytorch/dist/torch-2.9.1-cp312-cp312-linux_aarch64.whl`
+
 Or install in-place during development:
 
 ```bash
@@ -179,9 +183,29 @@ Observed result on this machine:
 - Average per iteration: `12.14 ms`
 - Effective FP16 throughput: `90.58 TFLOPs`
 
-Once the source build finishes and produces a wheel in `~/mllib-hpc/pytorch/dist`, rerun the same benchmark from the HPC build environment to compare against that baseline.
+After building the wheel, install it into the HPC environment and benchmark it with the same workload:
 
-At the time this guide was updated, the source build had progressed into active compilation successfully, but the full wheel had not finished yet, so the recorded benchmark in this document is still the validated prebuilt-wheel baseline.
+```bash
+source ~/mllib-hpc/activate_hpc_pytorch.sh
+python -m pip install --force-reinstall ~/mllib-hpc/pytorch/dist/torch-2.9.1-cp312-cp312-linux_aarch64.whl
+
+cd ~/dgx_spark_config/bench
+python - <<'PY'
+from bench_gemm import bench_gemm_loop
+bench_gemm_loop(M=8192, N=8192, K=8192, target_seconds=10, warmup=10)
+PY
+```
+
+Observed result from the completed source-built wheel on this machine:
+
+- Torch: `2.9.1`
+- CUDA build: `13.0`
+- Total time: `22.14 s`
+- Total iterations: `1885`
+- Average per iteration: `11.75 ms`
+- Effective FP16 throughput: `93.61 TFLOPs`
+
+Compared with the validated prebuilt-wheel baseline in `~/mllib`, that is an uplift of about `3.34%` on this short run.
 
 ## When You Still Need Root
 

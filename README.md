@@ -7,6 +7,11 @@ For the two workflows validated in this repository, use these repo-local guides:
 - [NON_HPC_PYTORCH_SETUP.md](./NON_HPC_PYTORCH_SETUP.md) for a user-local install from prebuilt optimized wheels.
 - [HPC_PYTORCH_SETUP.md](./HPC_PYTORCH_SETUP.md) for the supported source-build path using GCC/G++ plus `nvcc` on DGX Spark.
 
+Current validated local benchmark results for the `8192 x 8192 x 8192` FP16 GEMM workload are:
+
+- Prebuilt optimized wheel path: `90.58 TFLOPs`
+- Source-built HPC-oriented wheel path: `93.61 TFLOPs`
+
 If your machine already has CUDA, cuDNN, NCCL, cuSPARSELt, and cuFile installed, the autosetup helper now also supports a no-root discovery mode:
 
 ```bash
